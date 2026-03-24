@@ -124,9 +124,3 @@ DisplaySwitcher/
 - **Icons:** Drawn programmatically with `Pillow` (RGBA), converted to `HICON` via `CreateDIBSection` + `CreateIconIndirect`
 - **Taskbar overlay:** `ITaskbarList3::SetOverlayIcon` for a mode badge on the taskbar button
 - **Packaging:** PyInstaller `--onefile --windowed`
-
----
-
-## License
-
-MIT
