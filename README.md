@@ -1,4 +1,4 @@
-# DisplaySwitcher
+# Display Switcher
 
 A lightweight Windows system tray + taskbar app that lets you instantly toggle your display projection mode between **PC Screen Only** and **Extend** — with a single click.
 
