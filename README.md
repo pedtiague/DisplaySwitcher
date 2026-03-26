@@ -1,6 +1,6 @@
 # Display Switcher
 
-A lightweight Windows system tray + taskbar app that lets you instantly toggle your display projection mode between **PC Screen Only** and **Extend** — with a single click.
+A lightweight Windows system tray + taskbar app that lets you instantly toggle your display projection mode with a single click.
 
 ---
 
@@ -14,7 +14,7 @@ When a primary monitor is shared between two machines (e.g. switching the monito
 
 - **Taskbar presence** — appears as a regular open-application button (not just a tray icon), visible and clickable from both machines sharing the monitor
 - **System tray icon** — always-visible tray icon showing the current display mode
-- **Left-click to toggle** — cycles between *PC Screen Only* and *Extend*
+- **Left-click to toggle** — cycles between two configurable modes (default: *PC Screen Only* ↔ *Extend*)
 - **Right-click tray menu** — force any of the 4 Windows display modes:
   - PC Screen Only
   - Duplicate
@@ -24,6 +24,7 @@ When a primary monitor is shared between two machines (e.g. switching the monito
 - **Options panel** (via tray right-click → Options…):
   - Start with Windows toggle
   - Show / hide the taskbar icon (tray is always visible)
+  - Choose which two modes the left-click cycles between
 - **Settings persist** across sessions (stored in `%APPDATA%\DisplaySwitcher\settings.json`)
 
 ---
@@ -80,7 +81,7 @@ The output will be at `dist\DisplaySwitcher.exe`.
 
 1. Launch `DisplaySwitcher.exe` (or `python display_switcher.py`)
 2. The app appears as a button in your taskbar and as a tray icon
-3. **Left-click** the taskbar button or tray icon to toggle between *PC Screen Only* and *Extend*
+3. **Left-click** the taskbar button or tray icon to cycle between your two configured modes
 4. **Right-click** the tray icon to:
    - Force a specific display mode
    - Open Options
@@ -91,13 +92,15 @@ The output will be at `dist\DisplaySwitcher.exe`.
 
 ---
 
-## Start with Windows
+## Options
 
-In the Options window, enable **"Start with Windows"** to have DisplaySwitcher launch automatically on login. This adds an entry to:
+Open via tray icon right-click → **Options…**
 
-```
-HKCU\Software\Microsoft\Windows\CurrentVersion\Run
-```
+| Option | Description |
+|--------|-------------|
+| Start with Windows | Launches the app automatically on login (registry key: `HKCU\...\Run`) |
+| Show icon in taskbar | Toggles the taskbar button; tray icon is always shown |
+| Click cycles between | Choose any two of the 4 display modes to toggle on left-click |
 
 ---
 
