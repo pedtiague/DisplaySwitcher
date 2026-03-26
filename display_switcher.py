@@ -9,7 +9,7 @@ Display Switcher
 
 import subprocess, ctypes, ctypes.wintypes
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 import json, os, sys, threading, winreg, uuid
 from PIL import Image, ImageTk, ImageDraw
 
@@ -61,15 +61,24 @@ def detect_current_mode() -> str:
 _SETTINGS_DIR  = os.path.join(os.environ.get("APPDATA", ""), "DisplaySwitcher")
 _SETTINGS_FILE = os.path.join(_SETTINGS_DIR, "settings.json")
 
-DEFAULT_SETTINGS = {"start_with_windows": False, "show_taskbar": True}
+DEFAULT_SETTINGS = {
+    "start_with_windows": False,
+    "show_taskbar":       True,
+    "cycle_modes":        ["PC Screen Only", "Extend"],
+}
 
 def load_settings() -> dict:
     try:
         with open(_SETTINGS_FILE) as f:
             d = json.load(f)
+        cm = d.get("cycle_modes", DEFAULT_SETTINGS["cycle_modes"])
+        if not (isinstance(cm, list) and len(cm) == 2
+                and all(c in MODE_NAMES for c in cm) and cm[0] != cm[1]):
+            cm = DEFAULT_SETTINGS["cycle_modes"]
         return {
             "start_with_windows": bool(d.get("start_with_windows", False)),
             "show_taskbar":       bool(d.get("show_taskbar", True)),
+            "cycle_modes":        cm,
         }
     except Exception:
         return dict(DEFAULT_SETTINGS)
@@ -306,17 +315,13 @@ class DisplaySwitcher:
         subprocess.Popen(["DisplaySwitch.exe", MODE_CMD[mode_name]])
         self._refresh_all()
 
-    # Left-click only toggles between these two modes.
-    # The other modes (Duplicate, Second Screen Only) are only reachable
-    # via the right-click tray menu.
-    _CLICK_CYCLE = ["PC Screen Only", "Extend"]
-
     def _cycle_mode(self):
+        cycle = self.settings["cycle_modes"]
         try:
-            idx = self._CLICK_CYCLE.index(self.current_mode)
-            next_mode = self._CLICK_CYCLE[(idx + 1) % len(self._CLICK_CYCLE)]
+            idx = cycle.index(self.current_mode)
+            next_mode = cycle[(idx + 1) % len(cycle)]
         except ValueError:
-            next_mode = self._CLICK_CYCLE[0]
+            next_mode = cycle[0]
         self.set_mode(next_mode)
 
     # ── Taskbar click ─────────────────────────────────────────────────────────
@@ -439,7 +444,7 @@ class OptionsWindow:
         win = tk.Toplevel(app.root)
         app._opt_win = win   # store Toplevel so open_options can call winfo_exists()
         win.title("Display Switcher — Options")
-        win.geometry("320x150")
+        win.geometry("340x230")
         win.resizable(False, False)
         win.attributes("-topmost", True)
         win.protocol("WM_DELETE_WINDOW", win.destroy)
@@ -461,6 +466,24 @@ class OptionsWindow:
 
         ttk.Separator(win, orient="horizontal").pack(fill="x", padx=16, pady=4)
 
+        # ── Click-cycle modes ─────────────────────────────────────────────────
+        cycle = app.settings["cycle_modes"]
+        cycle_frame = ttk.Frame(win)
+        cycle_frame.pack(fill="x", padx=16, pady=6)
+        ttk.Label(cycle_frame, text="Click cycles between:").grid(
+            row=0, column=0, columnspan=3, sticky="w", pady=(0, 4))
+        self._cycle_a = tk.StringVar(value=cycle[0])
+        self._cycle_b = tk.StringVar(value=cycle[1])
+        ttk.Combobox(cycle_frame, textvariable=self._cycle_a,
+                     values=MODE_NAMES, state="readonly", width=16).grid(
+            row=1, column=0, padx=(0, 4))
+        ttk.Label(cycle_frame, text="↔").grid(row=1, column=1, padx=4)
+        ttk.Combobox(cycle_frame, textvariable=self._cycle_b,
+                     values=MODE_NAMES, state="readonly", width=16).grid(
+            row=1, column=2, padx=(4, 0))
+
+        ttk.Separator(win, orient="horizontal").pack(fill="x", padx=16, pady=4)
+
         # ── Buttons ───────────────────────────────────────────────────────────
         btn_frame = ttk.Frame(win)
         btn_frame.pack(fill="x", padx=16, pady=(0, 12))
@@ -470,12 +493,23 @@ class OptionsWindow:
     def _save(self):
         startup      = self._startup_var.get()
         show_taskbar = self._taskbar_var.get()
+        mode_a       = self._cycle_a.get()
+        mode_b       = self._cycle_b.get()
+
+        if mode_a == mode_b:
+            tk.messagebox.showwarning(
+                "Invalid selection",
+                "The two cycle modes must be different.",
+                parent=self.win,
+            )
+            return
 
         set_startup(startup)
 
         old_taskbar = self.app.settings["show_taskbar"]
         self.app.settings["start_with_windows"] = startup
         self.app.settings["show_taskbar"]        = show_taskbar
+        self.app.settings["cycle_modes"]         = [mode_a, mode_b]
         save_settings(self.app.settings)
 
         if show_taskbar != old_taskbar:
