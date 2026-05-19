@@ -111,9 +111,9 @@ def set_startup(enable: bool):
 def get_startup() -> bool:
     try:
         k = winreg.OpenKey(winreg.HKEY_CURRENT_USER, _RUN_KEY, 0, winreg.KEY_READ)
-        winreg.QueryValueEx(k, _REG_NAME)
+        val, _ = winreg.QueryValueEx(k, _REG_NAME)
         winreg.CloseKey(k)
-        return True
+        return val.strip('"') == _exe_path()
     except FileNotFoundError:
         return False
 
@@ -251,6 +251,9 @@ class DisplaySwitcher:
     def __init__(self):
         self.settings     = load_settings()
         self.current_mode = detect_current_mode()
+        # Keep the registry in sync with the current exe location on every launch.
+        if self.settings["start_with_windows"]:
+            set_startup(True)
         self._closing    = False
         self._started    = False
         self._hicon      = None
