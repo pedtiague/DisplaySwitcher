@@ -91,13 +91,18 @@ def save_settings(s: dict):
 
 # ── Start with Windows ────────────────────────────────────────────────────────
 
-_RUN_KEY  = r"Software\Microsoft\Windows\CurrentVersion\Run"
-_REG_NAME = "DisplaySwitcher"
+_RUN_KEY      = r"Software\Microsoft\Windows\CurrentVersion\Run"
+_APPROVED_KEY = r"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run"
+_REG_NAME     = "DisplaySwitcher"
+# First byte of the StartupApproved binary value: 2 = enabled, 3 = disabled
+_APPROVED_ON  = bytes([2]) + bytes(11)
+_APPROVED_OFF = bytes([3]) + bytes(11)
 
 def _exe_path() -> str:
     return sys.executable if getattr(sys, "frozen", False) else os.path.abspath(__file__)
 
 def set_startup(enable: bool):
+    # Write (or remove) the Run entry
     k = winreg.OpenKey(winreg.HKEY_CURRENT_USER, _RUN_KEY, 0, winreg.KEY_SET_VALUE)
     if enable:
         winreg.SetValueEx(k, _REG_NAME, 0, winreg.REG_SZ, f'"{_exe_path()}"')
@@ -108,14 +113,36 @@ def set_startup(enable: bool):
             pass
     winreg.CloseKey(k)
 
+    # Keep the StartupApproved key in sync — Windows uses this to enable/disable
+    # startup items via Task Manager. If it says "disabled" the Run entry is ignored.
+    try:
+        ka = winreg.OpenKey(winreg.HKEY_CURRENT_USER, _APPROVED_KEY, 0, winreg.KEY_SET_VALUE)
+        winreg.SetValueEx(ka, _REG_NAME, 0, winreg.REG_BINARY, _APPROVED_ON if enable else _APPROVED_OFF)
+        winreg.CloseKey(ka)
+    except OSError:
+        pass
+
 def get_startup() -> bool:
     try:
         k = winreg.OpenKey(winreg.HKEY_CURRENT_USER, _RUN_KEY, 0, winreg.KEY_READ)
         val, _ = winreg.QueryValueEx(k, _REG_NAME)
         winreg.CloseKey(k)
-        return val.strip('"') == _exe_path()
+        if val.strip('"') != _exe_path():
+            return False
     except FileNotFoundError:
         return False
+
+    # Also check that Task Manager hasn't disabled it (first byte 3 = disabled)
+    try:
+        ka = winreg.OpenKey(winreg.HKEY_CURRENT_USER, _APPROVED_KEY, 0, winreg.KEY_READ)
+        approved, _ = winreg.QueryValueEx(ka, _REG_NAME)
+        winreg.CloseKey(ka)
+        if isinstance(approved, (bytes, bytearray)) and approved[0] != 2:
+            return False
+    except (FileNotFoundError, IndexError):
+        pass  # Key absent means no override — treat as enabled
+
+    return True
 
 
 # ── Icon drawing ──────────────────────────────────────────────────────────────
